@@ -12,7 +12,7 @@ import (
 
 func DetectTCP(pnum uint16, buf []byte) string {
 	ret := ""
-	for _, f := range checkFunctions {
+	for _, f := range checkFunctionsTCP {
 		c := f(buf)
 		if ret == "" {
 			ret = c
@@ -23,7 +23,7 @@ func DetectTCP(pnum uint16, buf []byte) string {
 	return ret
 }
 
-var checkFunctions = []func(buf []byte) (ret string){
+var checkFunctionsTCP = []func(buf []byte) (ret string){
 	DetectPlains,
 	DetectTLS,
 }

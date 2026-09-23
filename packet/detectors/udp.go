@@ -1,17 +1,29 @@
 package detectors
 
 import (
+	"bytes"
 	"fmt"
 	"strconv"
 
 	"golang.org/x/net/dns/dnsmessage"
 )
 
-func DetectUDP(port uint16, data []byte) string {
-	// if len(data) < 14 {
-	// 	return ""
-	// }
-	return DetectDNS(data)
+func DetectUDP(pnum uint16, buf []byte) string {
+	ret := ""
+	for _, f := range checkFunctionsUDP {
+		c := f(buf)
+		if ret == "" {
+			ret = c
+		} else if c != "" {
+			ret = ret + " !AND! " + c
+		}
+	}
+	return ret
+}
+
+var checkFunctionsUDP = []func(buf []byte) (ret string){
+	DetectDNS,
+	DetectTorrent,
 }
 
 func DetectDNS(data []byte) string {
@@ -47,4 +59,23 @@ func DetectDNS(data []byte) string {
 	}
 	return ret
 
+}
+
+func DetectTorrent(buf []byte) (ret string) {
+	if len(buf) < 15 {
+		return
+	}
+	if bytes.HasPrefix(buf, []byte("A\x00")) {
+		return "probably torrent"
+	}
+	if bytes.HasPrefix(buf, []byte("!\x00")) {
+		return "probably torrent"
+	}
+	if bytes.HasPrefix(buf, []byte("\x01\x00")) {
+		return "probably torrent"
+	}
+	if bytes.HasPrefix(buf, []byte("d1:")) {
+		return "probably torrent"
+	}
+	return
 }
