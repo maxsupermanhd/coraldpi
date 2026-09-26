@@ -33,7 +33,7 @@ func DetectTLS(buf []byte) (ret string) {
 		return
 	}
 	if buf[0] >= 0x14 && buf[0] <= 0x18 && buf[1] == 0x03 && buf[2] <= 5 && binary.BigEndian.Uint16(buf[3:5]) < 16384 {
-		ret = "TLS " + []string{
+		ret = "TLS: " + []string{
 			"ChangeCipherSpec",
 			"Alert",
 			"Handshake",
@@ -43,7 +43,7 @@ func DetectTLS(buf []byte) (ret string) {
 	}
 	t := utls.Server(util.NewProvidedBytesConn(bytes.NewReader(buf)), &utls.Config{
 		GetConfigForClient: func(hello *utls.ClientHelloInfo) (*utls.Config, error) {
-			ret = "TLS ClientHello"
+			ret = "TLS: ClientHello"
 			if hello.ServerName != "" {
 				ret += fmt.Sprintf(" SNI:%q", hello.ServerName)
 			}
@@ -73,16 +73,16 @@ func DetectPlains(buf []byte) (ret string) {
 		return util.PeekBytes(buf, 48)
 	}
 	if bytes.HasPrefix(buf, []byte("PRI * HTTP/2.0\r\n\r\nSM\r\n\r\n")) {
-		return "HTTP2 prior knowledge"
+		return "HTTP2: prior knowledge"
 	}
 	if bytes.HasPrefix(buf, []byte("+OK ")) {
 		return "POP3"
 	}
 	if bytes.HasPrefix(buf, []byte("@RSYNCD: ")) {
-		return "RSYNC s2c"
+		return "RSYNC: s2c"
 	}
 	if bytes.HasPrefix(buf, []byte("SSH-")) {
-		return "SSH banner"
+		return "SSH: banner"
 	}
 	return
 }

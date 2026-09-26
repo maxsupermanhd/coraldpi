@@ -42,7 +42,7 @@ func DetectDNS(data []byte) string {
 			return ""
 		}
 		if len(r) == 0 {
-			return "DNS response no answers"
+			return "DNS: response without answers"
 		}
 		return fmt.Sprintf("DNS answers: %d", len(r))
 	}
@@ -51,9 +51,9 @@ func DetectDNS(data []byte) string {
 		return ""
 	}
 	if len(q) == 0 {
-		return "DNS query no questions"
+		return "DNS: query without questions"
 	}
-	ret := fmt.Sprintf("DNS query %q", q[0].Name)
+	ret := fmt.Sprintf("DNS: query %q", q[0].Name)
 	if len(q) > 1 {
 		ret += " +" + strconv.Itoa(len(q))
 	}
@@ -62,20 +62,16 @@ func DetectDNS(data []byte) string {
 }
 
 func DetectTorrent(buf []byte) (ret string) {
-	if len(buf) < 15 {
+	if len(buf) < 20 {
 		return
 	}
-	if bytes.HasPrefix(buf, []byte("A\x00")) {
-		return "probably torrent"
+	if string(buf[:12]) == string([]byte{0x00, 0x00, 0x04, 0x17, 0x27, 0x10, 0x19, 0x80, 0x00, 0x00, 0x00, 0x00}) {
+		return "Torrent: Tracker connect request"
 	}
-	if bytes.HasPrefix(buf, []byte("!\x00")) {
-		return "probably torrent"
-	}
-	if bytes.HasPrefix(buf, []byte("\x01\x00")) {
-		return "probably torrent"
-	}
-	if bytes.HasPrefix(buf, []byte("d1:")) {
-		return "probably torrent"
+	if buf[0] == 'd' &&
+		bytes.Contains(buf, []byte("1:y1:q")) &&
+		bytes.Contains(buf, []byte("1:q")) {
+		return "Torrent: DHT query"
 	}
 	return
 }
