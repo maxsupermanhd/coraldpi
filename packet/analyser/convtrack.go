@@ -1,6 +1,7 @@
 package analyser
 
 import (
+	"coraldpi/packet/assemble"
 	"coraldpi/util"
 	"fmt"
 	"strconv"
@@ -8,6 +9,7 @@ import (
 	"time"
 
 	"github.com/dustin/go-humanize"
+	"github.com/google/gopacket"
 	"github.com/google/gopacket/layers"
 )
 
@@ -28,8 +30,13 @@ type conversation struct {
 	PacketsFrom  uint32
 	BytesTo      uint32
 	BytesFrom    uint32
-	PeekTo       [peekBufSize]byte
-	PeekFrom     [peekBufSize]byte
+	Assembler    assemble.ConvAssembler
+}
+
+func NewConversation() *conversation {
+	return &conversation{
+		Assembler: assemble.NewDirectAppendAssembler(),
+	}
 }
 
 func (ct *conversation) Reset() {
@@ -45,8 +52,7 @@ func (ct *conversation) Reset() {
 	ct.DetectedTo = ""
 	ct.BytesTo = 0
 	ct.BytesFrom = 0
-	ct.PeekTo = [peekBufSize]byte{}
-	ct.PeekFrom = [peekBufSize]byte{}
+	ct.Assembler.Reset()
 }
 
 func (ct *conversation) String() string {
@@ -65,11 +71,11 @@ func (ct *conversation) String() string {
 	dstip := fmt.Sprintf("%d.%d.%d.%d", ct.DstIP[0], ct.DstIP[1], ct.DstIP[2], ct.DstIP[3])
 	dtTo := ct.DetectedTo
 	if dtTo == "" && ct.BytesTo > 0 {
-		dtTo = util.PeekBytes(ct.PeekTo[:min(ct.BytesTo, peekBufSize)], 16)
+		dtTo = util.PeekBytes(ct.Assembler.Peek(), 16)
 	}
 	dtFrom := ct.DetectedFrom
 	if dtFrom == "" && ct.BytesFrom > 0 {
-		dtFrom = util.PeekBytes(ct.PeekFrom[:min(ct.BytesFrom, peekBufSize)], 16)
+		dtFrom = util.PeekBytes(ct.Assembler.Peek(), 16)
 	}
 	return fmt.Sprintf("%s %4s %-15s:%-6d %7s >-< %-7s %-15s:%-6d %s >-< %s",
 		ct.StartTime.Format(time.DateTime), protostr,
@@ -96,20 +102,16 @@ func (ct *conversation) AddrSet(srcIP, dstIP [4]byte, srcPort, dstPort uint16) {
 	ct.DstPort = dstPort
 }
 
-func (ct *conversation) Feed(isSrc bool, buf []byte) {
+func (ct *conversation) Feed(isSrc bool, pk gopacket.Layer) {
 	ct.LastDataTime = time.Now()
+	ct.Assembler.Feed(pk)
+	payloadLen := len(pk.LayerPayload())
 	if isSrc {
 		ct.PacketsTo++
-		if ct.BytesTo < peekBufSize {
-			copy(ct.PeekTo[ct.BytesTo:], buf)
-		}
-		ct.BytesTo += uint32(len(buf))
+		ct.BytesTo += uint32(payloadLen)
 	} else {
 		ct.PacketsFrom++
-		if ct.BytesFrom < peekBufSize {
-			copy(ct.PeekFrom[ct.BytesFrom:], buf)
-		}
-		ct.BytesFrom += uint32(len(buf))
+		ct.BytesFrom += uint32(payloadLen)
 	}
 }
 
@@ -136,7 +138,7 @@ func (ct *convtrack) findOrAllocateConv(srcIP, dstIP [4]byte, proto uint8, srcPo
 	}
 	r := ct.pool.Get()
 	if r == nil {
-		ret = &conversation{}
+		ret = NewConversation()
 		ret.Reset()
 	} else {
 		ret = r.(*conversation)

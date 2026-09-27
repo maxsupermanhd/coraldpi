@@ -149,7 +149,13 @@ func (ia *interfaceAnalyser) processPacket(data []byte) (err error) {
 	}
 
 	conv, isSrc := ia.convtrack.findOrAllocateConv([4]byte(ia.pIPv4.SrcIP), [4]byte(ia.pIPv4.DstIP), uint8(ia.pIPv4.Protocol), srcPort, dstPort)
-	conv.Feed(isSrc, payload)
+
+	switch ia.pIPv4.Protocol {
+	case layers.IPProtocolTCP:
+		conv.Feed(isSrc, &ia.pTCP)
+	case layers.IPProtocolUDP:
+		conv.Feed(isSrc, &ia.pUDP)
+	}
 
 	var detectstr *string
 	var detectPort uint16
