@@ -45,6 +45,7 @@ func main() {
 			case <-time.After(5 * time.Second):
 				fmt.Println("\n\n")
 				st := ia.GetStats()
+				slices.Sort(st.Convs)
 				for _, c := range st.Convs {
 					fmt.Println(c)
 				}

@@ -77,8 +77,8 @@ func (ct *conversation) String() string {
 	if dtFrom == "" && ct.BytesFrom > 0 {
 		dtFrom = util.PeekBytes(ct.Assembler.Peek(), 16)
 	}
-	return fmt.Sprintf("%s %4s %-15s:%-6d %7s >-< %-7s %-15s:%-6d %s >-< %s",
-		ct.StartTime.Format(time.DateTime), protostr,
+	return fmt.Sprintf("%s %s %4s %-15s:%-6d %7s >-< %-7s %-15s:%-6d %s >-< %s",
+		ct.StartTime.Format(time.TimeOnly), ct.LastDataTime.Format(time.TimeOnly), protostr,
 		srcip, ct.SrcPort, humanize.Bytes(uint64(ct.BytesTo)), humanize.Bytes(uint64(ct.BytesFrom)), dstip, ct.DstPort,
 		dtTo, dtFrom)
 }
